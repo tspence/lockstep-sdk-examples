@@ -1,0 +1,48 @@
+<html>
+    <head>
+        <title>
+            Lockstep developer account provisioning
+        </title>
+    </head>
+<script>
+function submit_form()
+{
+    document.getElementById('results').textContent = "Waiting for results...";
+    request = {
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        email: document.getElementById('email').value,
+        companyName: document.getElementById('companyName').value,
+    };
+    var bodyText = JSON.stringify(request);
+    console.log(bodyText);
+    const options = {
+        method: 'POST',
+        headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
+        body: bodyText,
+    };
+
+    //var url = 'https://api.sbx.lockstep.io/api/v1/Provisioning/free-account';
+    var url = 'https://localhost:5001/api/v1/Provisioning/free-account';
+    fetch(url, options)
+        .then(response => {
+            document.getElementById('results').textContent = "Provisioned account successfully.";
+        })
+        .then(response => {
+            document.getElementById('results').textContent = "Failed to provision account.";
+        })
+    return false;
+}        
+</script>
+    <body>
+        <form>
+            <h2>Provision Free Developer Account</h2>
+            <p>First Name: <input type="text" id="firstName" value="Ted"/></p>
+            <p>Last Name: <input type="text" id="lastName" value="Spence"/></p>
+            <p>Email: <input type="text" id="email" value="ted@spence.net"/></p>
+            <p>Company: <input type="text" id="companyName" value="Ted's Greatest Popcorn"/></p>
+            <p><input type="button" id="Submit" onclick="submit_form();" value="Submit"/></p>
+        </form>
+        <p id="results">Results go here</p>
+    </body>
+</html>
