@@ -7,29 +7,37 @@
 <script>
 function submit_form()
 {
-    document.getElementById('results').textContent = "Waiting for results...";
+    document.getElementById('Submit').value = "Sending...";
     request = {
         firstName: document.getElementById('firstName').value,
         lastName: document.getElementById('lastName').value,
+        name: document.getElementById('firstName').value + ' ' + document.getElementById('lastName').value,
         email: document.getElementById('email').value,
         companyName: document.getElementById('companyName').value,
     };
-    var bodyText = JSON.stringify(request);
-    console.log(bodyText);
+    var body = JSON.stringify(request);
+    //const headers = {'Accept': 'application/json', 'Content-Type': 'application/json'};
+    const headers = new Headers();
+    headers.append('Accept', 'application/json');
+    headers.append('Content-Type', 'application/json');
     const options = {
         method: 'POST',
-        headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
-        body: bodyText,
+        cache: 'no-cache',
+        headers,
+        body,
     };
+    alert(`Submitting: ${JSON.stringify(options)}`);
 
-    //var url = 'https://api.sbx.lockstep.io/api/v1/Provisioning/free-account';
-    var url = 'https://localhost:5001/api/v1/Provisioning/free-account';
+    var url = 'https://api.dev.lockstep.io/api/v1/Provisioning/free-account';
+    
     fetch(url, options)
         .then(response => {
-            document.getElementById('results').textContent = "Provisioned account successfully.";
-        })
-        .then(response => {
-            document.getElementById('results').textContent = "Failed to provision account.";
+            if (response.ok) {
+                window.location = '/api-thankyou'
+            } else {
+                alert(`Error: ${response.status} ${response.body}`);
+            }
+            document.getElementById('Submit').value = "Submit";
         })
     return false;
 }        
@@ -37,10 +45,10 @@ function submit_form()
     <body>
         <form>
             <h2>Provision Free Developer Account</h2>
-            <p>First Name: <input type="text" id="firstName" value="Ted"/></p>
-            <p>Last Name: <input type="text" id="lastName" value="Spence"/></p>
-            <p>Email: <input type="text" id="email" value="ted@spence.net"/></p>
-            <p>Company: <input type="text" id="companyName" value="Ted's Greatest Popcorn"/></p>
+            <p>First Name: <input type="text" id="firstName" value="Bob"/></p>
+            <p>Last Name: <input type="text" id="lastName" value="Example"/></p>
+            <p>Email: <input type="text" id="email" value="bob@example.com"/></p>
+            <p>Company: <input type="text" id="companyName" value="Example Dot Com"/></p>
             <p><input type="button" id="Submit" onclick="submit_form();" value="Submit"/></p>
         </form>
         <p id="results">Results go here</p>
