@@ -16,31 +16,27 @@ function submit_form()
         companyName: document.getElementById('companyName').value,
     };
     var body = JSON.stringify(request);
-    //const headers = {'Accept': 'application/json', 'Content-Type': 'application/json'};
     const headers = new Headers();
     headers.append('Accept', 'application/json');
     headers.append('Content-Type', 'application/json');
     const options = {
         method: 'POST',
-        cache: 'no-cache',
+        mode: 'cors',
         headers,
         body,
     };
-    alert(`Submitting: ${JSON.stringify(options)}`);
-
-    var url = 'https://api.dev.lockstep.io/api/v1/Provisioning/free-account';
-    
+    var url = 'https://api.sbx.lockstep.io/api/v1/Provisioning/free-account';
     fetch(url, options)
         .then(response => {
             if (response.ok) {
                 window.location = '/api-thankyou'
             } else {
-                alert(`Error: ${response.status} ${response.body}`);
+                alert(`Unable to provision developer account: ${response.status} ${response.body}`);
             }
             document.getElementById('Submit').value = "Submit";
         })
     return false;
-}        
+}
 </script>
     <body>
         <form>
