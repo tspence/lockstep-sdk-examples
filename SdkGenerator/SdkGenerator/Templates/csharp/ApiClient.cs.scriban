@@ -25,6 +25,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Web;
+using {{ project.csharp.namespace }}.Clients;
+using {{ project.csharp.namespace }}.Models;
 
 
 namespace {{ project.csharp.namespace }} 
@@ -34,22 +36,24 @@ namespace {{ project.csharp.namespace }}
     /// </summary>
     public class {{ project.csharp.class_name }}
     {
-        // The URL of the environment we will use
+        public const string SdkVersion = "{{ api.semver3 }}";
+        
         private readonly string _serverUrl;
-        private const string _version = "{{ api.semver3 }}";
         private readonly HttpClient _client;
+        private readonly JsonSerializerOptions _options;
+        
         private string _appName;
         private string _bearerToken;
         private string _apiKey;
-        private JsonSerializerOptions _options;
     
     {{~ for cat in api.categories ~}}
         /// <summary>
         /// API methods related to {{ cat }}
         /// </summary>
-        public {{ cat }}Client {{ cat }} { get; set; }
-    {{~ end ~}}    
-    
+        public {{ cat }}Client {{ cat }} { get; }
+
+    {{~ end ~}}
+
         /// <summary>
         /// Internal constructor for the client.  You should always begin with `withEnvironment()`.
         /// </summary>
@@ -59,16 +63,18 @@ namespace {{ project.csharp.namespace }}
             // Add support for HTTP compression
             var handler = new HttpClientHandler();
             handler.AutomaticDecompression = DecompressionMethods.GZip;
+            
             // We intentionally use a single HttpClient object for the lifetime of this API connection.
             // Best practices: https://bytedev.medium.com/net-core-httpclient-best-practices-4c1b20e32c6
-            this._client = new HttpClient(handler);
-            this._serverUrl = customUrl;
+            _client = new HttpClient(handler);
+            
+            _serverUrl = customUrl;
     {{~ for cat in api.categories ~}}
-            this.{{ cat }} = new {{ cat }}Client(this);
+            {{ cat }} = new {{ cat }}Client(this);
     {{~ end ~}}
                 
-            // Configure serializer options once
-            this._options = new JsonSerializerOptions
+            // Configure JSON serializer options
+            _options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, 
@@ -90,18 +96,7 @@ namespace {{ project.csharp.namespace }}
 {{~ end ~}}
             }
     
-            throw new NotImplementedException("Unknown environment");
-        }
-    
-        /// <summary>
-        /// Set the application name
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public {{ project.csharp.class_name }} WithAppName(string name)
-        {
-            this._appName = name;
-            return this;
+            throw new InvalidOperationException($"Unknown environment: {env}");
         }
     
         /// <summary>
@@ -115,6 +110,17 @@ namespace {{ project.csharp.namespace }}
         {
             return new {{ project.csharp.class_name }}(unsafeUrl);
         }
+        
+        /// <summary>
+        /// Set the application name
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public {{ project.csharp.class_name }} WithAppName(string name)
+        {
+            _appName = name;
+            return this;
+        }
     
         /// <summary>
         /// Configure this API client to use a JWT bearer token.
@@ -125,8 +131,8 @@ namespace {{ project.csharp.namespace }}
         /// <returns></returns>
         public {{ project.csharp.class_name }} WithBearerToken(string token)
         {
-            this._bearerToken = token;
-            this._apiKey = null;
+            _bearerToken = token;
+            _apiKey = null;
             return this;
         }
     
@@ -139,8 +145,8 @@ namespace {{ project.csharp.namespace }}
         /// <returns></returns>
         public {{ project.csharp.class_name }} WithApiKey(string apiKey)
         {
-            this._apiKey = apiKey;
-            this._bearerToken = null;
+            _apiKey = apiKey;
+            _bearerToken = null;
             return this;
         }
     
@@ -163,7 +169,7 @@ namespace {{ project.csharp.namespace }}
             request.Method = method;
             request.Headers.Add("Accept", "application/json");
             request.Headers.Add("SdkName", "DotNet");
-            request.Headers.Add("SdkVersion", _version);
+            request.Headers.Add("SdkVersion", SdkVersion);
             request.Headers.Add("MachineName", Environment.MachineName);
             if (_appName != null)
             {
@@ -171,17 +177,17 @@ namespace {{ project.csharp.namespace }}
             }
     
             // Add authentication headers, if any
-            if (!string.IsNullOrWhiteSpace(this._bearerToken))
+            if (!string.IsNullOrWhiteSpace(_bearerToken))
             {
-                request.Headers.Add("Authorization", "Bearer " + this._bearerToken);
+                request.Headers.Add("Authorization", "Bearer " + _bearerToken);
             }
-            else if (!string.IsNullOrWhiteSpace(this._apiKey))
+            else if (!string.IsNullOrWhiteSpace(_apiKey))
             {
-                request.Headers.Add("Api-Key", this._apiKey);
+                request.Headers.Add("Api-Key", _apiKey);
             }
     
             // Construct the request URI and query string
-            var uriBuilder = new UriBuilder(this._serverUrl)
+            var uriBuilder = new UriBuilder(_serverUrl)
             {
                 Path = path
             };

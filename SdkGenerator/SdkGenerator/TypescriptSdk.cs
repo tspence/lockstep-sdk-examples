@@ -4,327 +4,351 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SwaggerDownload.Project;
+using SdkGenerator.Project;
+using SdkGenerator.Schema;
 
-namespace SwaggerDownload
+namespace SdkGenerator;
+
+public static class TypescriptSdk
 {
-    public static class TypescriptSdk
+    private static string FileHeader(ProjectSchema project)
     {
-        private static string FileHeader(ProjectSchema project)
+        return "/**\n"
+               + $" * {project.ProjectName} for TypeScript\n"
+               + " *\n"
+               + $" * (c) {project.ProjectStartYear}-{DateTime.UtcNow.Year} {project.CopyrightHolder}\n"
+               + " *\n"
+               + " * For the full copyright and license information, please view the LICENSE\n"
+               + " * file that was distributed with this source code.\n"
+               + " *\n"
+               + $" * @author     {project.AuthorName} <{project.AuthorEmail}>\n"
+               + $" * @copyright  {project.ProjectStartYear}-{DateTime.UtcNow.Year} {project.CopyrightHolder}\n"
+               + $" * @link       {project.Typescript.GithubUrl}\n"
+               + " */\n";
+    }
+
+    private static string FixupType(ApiSchema api, string typeName, bool isArray, bool nullable)
+    {
+        var s = typeName;
+        if (api.IsEnum(typeName))
         {
-            return "/**\n"
-                   + $" * {project.ProjectName} for TypeScript\n"
-                   + " *\n"
-                   + $" * (c) {project.ProjectStartYear}-{DateTime.UtcNow.Year} {project.CopyrightHolder}\n"
-                   + " *\n"
-                   + " * For the full copyright and license information, please view the LICENSE\n"
-                   + " * file that was distributed with this source code.\n"
-                   + " *\n"
-                   + $" * @author     {project.AuthorName} <{project.AuthorEmail}\n"
-                   + $" * @copyright  {project.ProjectStartYear}-{DateTime.UtcNow.Year} {project.CopyrightHolder}\n"
-                   + $" * @link       {project.Typescript.GithubUrl}\n"
-                   + " */\n";
+            s = api.FindSchema(typeName).EnumType;
         }
 
-        private static string FixupType(ApiSchema api, string typeName, bool isArray, bool nullable)
+        switch (s)
         {
-            var s = typeName;
-            if (api.IsEnum(typeName))
-            {
-                s = api.FindSchema(typeName).EnumType;
-            }
-            switch (s)
-            {
-                case "tel":
-                case "Uri":
-                    s = "string";
-                    break;
-                case "TestTimeoutException":
-                    s = "ErrorResult";
-                    break;
-                case "File":
-                    s = "string"; // This is a file upload using a filename
-                    break;
-                case "float":
-                case "int64":
-                case "double":
-                case "integer":
-                case "int32":
-                    s = "number";
-                    break;
-                case "email":
-                case "date":
-                case "uri":
-                case "date-time":
-                case "uuid":
-                    s = "string";
-                    break;
-                case "binary":
-                    s = "Blob";
-                    break;
-                default:
-                    s = typeName;
-                    break;
-            }
-
-            if (isArray)
-            {
-                s += "[]";
-            }
-
-            if (s.EndsWith("FetchResult"))
-            {
-                s = $"FetchResult<{s[..^11]}>";
-            }
-
-            if (nullable)
-            {
-                s += " | null";
-            }
-            return s;
+            case "tel":
+            case "Uri":
+                s = "string";
+                break;
+            case "TestTimeoutException":
+                s = "ErrorResult";
+                break;
+            case "File":
+                s = "string"; // This is a file upload using a filename
+                break;
+            case "float":
+            case "int64":
+            case "double":
+            case "integer":
+            case "int32":
+                s = "number";
+                break;
+            case "email":
+            case "date":
+            case "uri":
+            case "date-time":
+            case "uuid":
+                s = "string";
+                break;
+            case "binary":
+                s = "Blob";
+                break;
+            default:
+                s = typeName;
+                break;
         }
 
-        private static async Task ExportSchemas(ProjectSchema project, ApiSchema api)
+        if (isArray)
         {
-            foreach (var item in api.Schemas)
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine(FileHeader(project));
-                foreach (var import in GetImports(api, item))
-                {
-                    sb.AppendLine(import);
-                }
-                if (item.Fields != null)
-                {
-                    sb.AppendLine();
-                    sb.Append(item.DescriptionMarkdown.ToJavaDoc(0));
-                    sb.AppendLine($"export type {item.Name} = {{");
-                    foreach (var field in item.Fields)
-                    {
-                        if (!field.Deprecated)
-                        {
-                            sb.AppendLine();
-                            sb.Append(field.DescriptionMarkdown.ToJavaDoc(2));
-                            sb.AppendLine(
-                                $"  {field.Name}: {FixupType(api, field.DataType, field.IsArray, field.Nullable)};");
-                        }
-                    }
-
-                    sb.AppendLine("};");
-                }
-                var modelPath = Path.Combine(project.Typescript.Folder, "src", "models", item.Name + ".ts");
-                await File.WriteAllTextAsync(modelPath, sb.ToString());
-            }
+            s += "[]";
         }
 
-        private static async Task ExportEndpoints(ProjectSchema project, ApiSchema api)
+        if (s.EndsWith("FetchResult"))
         {
-            // Gather a list of unique categories
-            var categories = (from e in api.Endpoints where !e.Deprecated select e.Category).Distinct().ToList();
-            foreach (var cat in categories)
+            s = $"FetchResult<{s[..^11]}>";
+        }
+
+        if (nullable)
+        {
+            s += " | null";
+        }
+
+        return s;
+    }
+
+    private static async Task ExportSchemas(ProjectSchema project, ApiSchema api)
+    {
+        var modelsDir = Path.Combine(project.Typescript.Folder, "src", "models");
+        Directory.CreateDirectory(modelsDir);
+        foreach (var modelFile in Directory.EnumerateFiles(modelsDir, "*.ts"))
+        {
+            File.Delete(modelFile);
+        }
+
+        foreach (var item in api.Schemas)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(FileHeader(project));
+            foreach (var import in GetImports(api, item))
             {
-                var sb = new StringBuilder();
+                sb.AppendLine(import);
+            }
 
-                // Construct header
-                sb.AppendLine(FileHeader(project));
-                sb.AppendLine($"import {{ {project.Typescript.ClassName} }} from \"..\";");
-                sb.AppendLine($"import {{ {project.Typescript.ResponseClass} }} from \"..\";");
-                foreach (var import in GetImports(api, cat))
-                {
-                    sb.AppendLine(import);
-                }
-
+            if (item.Fields != null)
+            {
                 sb.AppendLine();
-                sb.AppendLine($"export class {cat}Client {{");
-                sb.AppendLine($"  private readonly client: {project.Typescript.ClassName};");
-                sb.AppendLine();
-                sb.AppendLine("  /**");
-                sb.AppendLine("   * Internal constructor for this client library");
-                sb.AppendLine("   */");
-                sb.AppendLine($"  public constructor(client: {project.Typescript.ClassName}) {{");
-                sb.AppendLine("    this.client = client;");
-                sb.AppendLine("  }");
-
-                // Run through all APIs
-                foreach (var endpoint in api.Endpoints)
+                sb.Append(item.DescriptionMarkdown.ToJavaDoc(0));
+                sb.AppendLine($"export type {item.Name} = {{");
+                foreach (var field in item.Fields)
                 {
-                    if (endpoint.Category == cat && !endpoint.Deprecated)
+                    if (!field.Deprecated)
                     {
                         sb.AppendLine();
-                        sb.Append(endpoint.DescriptionMarkdown.ToJavaDoc(2, null, endpoint.Parameters));
-
-                        // Figure out the parameter list. For parameters, we'll use ? to indicate nullability.
-                        var paramListStr = String.Join(", ", from p in endpoint.Parameters
-                            orderby p.Required descending
-                            select
-                                $"{p.Name}{(p.Required ? "" : "?")}: {FixupType(api, p.DataType, p.IsArray, false)}");
-
-                        // Do we need to specify options?
-                        var options = (from p in endpoint.Parameters where p.Location == "query" select p).ToList();
-
-                        // What is our return type?
-                        var returnType = FixupType(api, endpoint.ReturnDataType.DataType,
-                            endpoint.ReturnDataType.IsArray, false);
-                        var isFileUpload = (from p in endpoint.Parameters where p.Location == "form" select p).Any();
-
-                        // Are we using the blob method?
-                        var requestMethod = (returnType == "Blob") ? "requestBlob" : $"request<{returnType}>";
-                        if (isFileUpload)
-                        {
-                            requestMethod = "fileUpload";
-                        }
-
-                        // Write the method
+                        sb.Append(field.DescriptionMarkdown.ToJavaDoc(2));
                         sb.AppendLine(
-                            $"  {endpoint.Name.ToCamelCase()}({paramListStr}): Promise<{project.Typescript.ResponseClass}<{returnType}>> {{");
-                        sb.AppendLine($"    const url = `{endpoint.Path.Replace("{", "${")}`;");
-                        if (options.Count > 0)
-                        {
-                            sb.AppendLine("    const options = {");
-                            sb.AppendLine("      params: {");
-                            foreach (var o in options)
-                            {
-                                sb.AppendLine($"        {o.Name},");
-                            }
-
-                            sb.AppendLine("      },");
-                            sb.AppendLine("    };");
-                        }
-
-                        var hasBody = (from p in endpoint.Parameters where p.Location == "body" select p).Any();
-                        var optionsStr = (options.Count > 0 ? ", options" : ", null");
-                        var bodyStr = (isFileUpload ? ", filename" : (hasBody ? ", body" : ", null"));
-                        sb.AppendLine(
-                            $"    return this.client.{requestMethod}(\"{endpoint.Method}\", url{optionsStr}{bodyStr});");
-                        sb.AppendLine("  }");
+                            $"  {field.Name}: {FixupType(api, field.DataType, field.IsArray, field.Nullable)};");
                     }
                 }
 
-                // Close out the namespace
-                sb.AppendLine("}");
-
-                // Write this category to a file
-                var classPath = Path.Combine(project.Typescript.Folder, "src", "clients", $"{cat}Client.ts");
-                await File.WriteAllTextAsync(classPath, sb.ToString());
+                sb.AppendLine("};");
             }
+
+            var modelPath = Path.Combine(modelsDir, item.Name + ".ts");
+            await File.WriteAllTextAsync(modelPath, sb.ToString());
+        }
+    }
+
+    private static async Task ExportEndpoints(ProjectSchema project, ApiSchema api)
+    {
+        var clientsDir = Path.Combine(project.Typescript.Folder, "src", "clients");
+        Directory.CreateDirectory(clientsDir);
+        foreach (var clientsFile in Directory.EnumerateFiles(clientsDir, "*.ts"))
+        {
+            File.Delete(clientsFile);
         }
 
-        private static void AddImport(ApiSchema api, string name, List<string> list)
+        // Gather a list of unique categories
+        var categories = (from e in api.Endpoints where !e.Deprecated select e.Category).Distinct().ToList();
+        foreach (var cat in categories)
         {
-            if (string.IsNullOrWhiteSpace(name)) return;
-            if (name.EndsWith("FetchResult"))
-            {
-                if (!list.Contains("FetchResult"))
-                {
-                    list.Add("FetchResult");
-                }
-                var innerType = name[..^11];
-                AddImport(api, innerType, list);
-            }
-            else if (!api.IsEnum(name))
-            {
-                if (!list.Contains(name))
-                {
-                    list.Add(name);
-                }
-            }
-        }
+            var sb = new StringBuilder();
 
-        private static List<string> GetImports(ApiSchema api, string category)
-        {
-            var types = new List<string>();
+            // Construct header
+            sb.AppendLine(FileHeader(project));
+            sb.AppendLine($"import {{ {project.Typescript.ClassName} }} from \"..\";");
+            sb.AppendLine($"import {{ {project.Typescript.ResponseClass} }} from \"..\";");
+            foreach (var import in GetImports(api, cat))
+            {
+                sb.AppendLine(import);
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"export class {cat}Client {{");
+            sb.AppendLine($"  private readonly client: {project.Typescript.ClassName};");
+            sb.AppendLine();
+            sb.AppendLine("  /**");
+            sb.AppendLine("   * Internal constructor for this client library");
+            sb.AppendLine("   */");
+            sb.AppendLine($"  public constructor(client: {project.Typescript.ClassName}) {{");
+            sb.AppendLine("    this.client = client;");
+            sb.AppendLine("  }");
+
+            // Run through all APIs
             foreach (var endpoint in api.Endpoints)
             {
-                if (endpoint.Category == category && !endpoint.Deprecated)
+                if (endpoint.Category == cat && !endpoint.Deprecated)
                 {
-                    AddImport(api, endpoint.ReturnDataType.DataType, types);
-                    foreach (var p in endpoint.Parameters)
+                    sb.AppendLine();
+                    sb.Append(endpoint.DescriptionMarkdown.ToJavaDoc(2, null, endpoint.Parameters));
+
+                    // Figure out the parameter list. For parameters, we'll use ? to indicate nullability.
+                    var paramListStr = string.Join(", ", from p in endpoint.Parameters
+                        orderby p.Required descending
+                        select
+                            $"{p.Name}{(p.Required ? "" : "?")}: {FixupType(api, p.DataType, p.IsArray, false)}");
+
+                    // Do we need to specify options?
+                    var options = (from p in endpoint.Parameters where p.Location == "query" select p).ToList();
+
+                    // What is our return type?
+                    var returnType = FixupType(api, endpoint.ReturnDataType.DataType,
+                        endpoint.ReturnDataType.IsArray, false);
+                    var isFileUpload = (from p in endpoint.Parameters where p.Location == "form" select p).Any();
+
+                    // Are we using the blob method?
+                    var requestMethod = returnType == "Blob" ? "requestBlob" : $"request<{returnType}>";
+                    if (isFileUpload)
                     {
-                        AddImport(api, p.DataType, types);
+                        requestMethod = "fileUpload";
                     }
+
+                    // Write the method
+                    sb.AppendLine(
+                        $"  {endpoint.Name.ToCamelCase()}({paramListStr}): Promise<{project.Typescript.ResponseClass}<{returnType}>> {{");
+                    sb.AppendLine($"    const url = `{endpoint.Path.Replace("{", "${")}`;");
+                    if (options.Count > 0)
+                    {
+                        sb.AppendLine("    const options = {");
+                        sb.AppendLine("      params: {");
+                        foreach (var o in options)
+                        {
+                            sb.AppendLine($"        {o.Name},");
+                        }
+
+                        sb.AppendLine("      },");
+                        sb.AppendLine("    };");
+                    }
+
+                    var hasBody = (from p in endpoint.Parameters where p.Location == "body" select p).Any();
+                    var optionsStr = options.Count > 0 ? ", options" : ", null";
+                    var bodyStr = isFileUpload ? ", filename" : hasBody ? ", body" : ", null";
+                    sb.AppendLine(
+                        $"    return this.client.{requestMethod}(\"{endpoint.Method}\", url{optionsStr}{bodyStr});");
+                    sb.AppendLine("  }");
                 }
             }
 
-            return GenerateImportsFromList(types);
+            // Close out the namespace
+            sb.AppendLine("}");
+
+            // Write this category to a file
+            var classPath = Path.Combine(clientsDir, $"{cat}Client.ts");
+            await File.WriteAllTextAsync(classPath, sb.ToString());
         }
-        
-        
-        private static List<string> GetImports(ApiSchema api, SchemaItem item)
+    }
+
+    private static void AddImport(ApiSchema api, string name, List<string> list)
+    {
+        if (string.IsNullOrWhiteSpace(name))
         {
-            var types = new List<string>();
-            foreach (var field in (item?.Fields).EmptyIfNull())
+            return;
+        }
+
+        if (name.EndsWith("FetchResult"))
+        {
+            if (!list.Contains("FetchResult"))
             {
-                if (field?.DataType != item?.Name)
-                {
-                    AddImport(api, field?.DataType, types);
-                }
+                list.Add("FetchResult");
             }
 
-            return GenerateImportsFromList(types);
+            var innerType = name[..^11];
+            AddImport(api, innerType, list);
         }
-
-        private static List<string> GenerateImportsFromList(List<string> types)
+        else if (!api.IsEnum(name) && !list.Contains(name))
         {
-            // Deduplicate the list and generate import statements
-            var imports = new List<string>();
-            foreach (var t in types)
+            list.Add(name);
+        }
+    }
+
+    private static List<string> GetImports(ApiSchema api, string category)
+    {
+        var types = new List<string>();
+        foreach (var endpoint in api.Endpoints)
+        {
+            if (endpoint.Category == category && !endpoint.Deprecated)
             {
-                switch (t)
+                AddImport(api, endpoint.ReturnDataType.DataType, types);
+                foreach (var p in endpoint.Parameters)
                 {
-                    case "FetchResult":
-                        imports.Add("import { FetchResult } from \"..\";");
-                        break;
-                    case "ActionResultModel":
-                        imports.Add("import { ActionResultModel } from \"..\";");
-                        break;
-                    case "TestTimeoutException":
-                        imports.Add("import { ErrorResult } from \"..\";");
-                        break;
-                    case "binary":
-                        imports.Add("import { Blob } from \"buffer\";");
-                        break;
-                    case "string":
-                    case "uuid":
-                    case "object":
-                    case "int32":
-                    case "date":
-                    case "date-time":
-                    case "File":
-                    case "boolean":
-                    case "array":
-                    case "email":
-                    case "double":
-                    case "float":
-                    case "uri":
-                        break;
-                    default:
-                        imports.Add("import { " + t + " } from \"..\";");
-                        break;
+                    AddImport(api, p.DataType, types);
                 }
             }
-
-            return imports;
         }
 
-        public static async Task Export(ProjectSchema project, ApiSchema api)
+        return GenerateImportsFromList(types);
+    }
+
+    private static List<string> GetImports(ApiSchema api, SchemaItem item)
+    {
+        var types = new List<string>();
+        foreach (var field in (item?.Fields).EmptyIfNull())
         {
-            if (project.Typescript == null) return;
-            await ExportSchemas(project, api);
-            await ExportEndpoints(project, api);
-
-            // Let's try using Scriban to populate these files
-            await ScribanFunctions.ExecuteTemplate(
-                Path.Combine(".", "templates", "ts", "ApiClient.ts.scriban"),
-                project, api,
-                Path.Combine(project.Typescript.Folder, "src", project.Typescript.ClassName + ".ts"));
-            await ScribanFunctions.ExecuteTemplate(
-                Path.Combine(".", "templates", "ts", "index.ts.scriban"),
-                project, api,
-                Path.Combine(project.Typescript.Folder, "src", "index.ts"));
-
-            // Patch the version number in package.json
-            await Extensions.PatchFile(Path.Combine(project.Typescript.Folder, "package.json"), "\"version\": \"[\\d\\.]+\",",
-                $"\"version\": \"{api.Semver3}\",");
+            if (field?.DataType != item?.Name)
+            {
+                AddImport(api, field?.DataType, types);
+            }
         }
+
+        return GenerateImportsFromList(types);
+    }
+
+    private static List<string> GenerateImportsFromList(List<string> types)
+    {
+        // Deduplicate the list and generate import statements
+        var imports = new List<string>();
+        foreach (var t in types)
+        {
+            switch (t)
+            {
+                case "FetchResult":
+                    imports.Add("import { FetchResult } from \"..\";");
+                    break;
+                case "ActionResultModel":
+                    imports.Add("import { ActionResultModel } from \"..\";");
+                    break;
+                case "TestTimeoutException":
+                    imports.Add("import { ErrorResult } from \"..\";");
+                    break;
+                case "binary":
+                    imports.Add("import { Blob } from \"buffer\";");
+                    break;
+                case "string":
+                case "uuid":
+                case "object":
+                case "int32":
+                case "date":
+                case "date-time":
+                case "File":
+                case "boolean":
+                case "array":
+                case "email":
+                case "double":
+                case "float":
+                case "uri":
+                    break;
+                default:
+                    imports.Add("import { " + t + " } from \"..\";");
+                    break;
+            }
+        }
+
+        return imports;
+    }
+
+    public static async Task Export(ProjectSchema project, ApiSchema api)
+    {
+        if (project.Typescript == null)
+        {
+            return;
+        }
+
+        await ExportSchemas(project, api);
+        await ExportEndpoints(project, api);
+
+        // Let's try using Scriban to populate these files
+        await ScribanFunctions.ExecuteTemplate(
+            Path.Combine(".", "templates", "ts", "ApiClient.ts.scriban"),
+            project, api,
+            Path.Combine(project.Typescript.Folder, "src", project.Typescript.ClassName + ".ts"));
+        await ScribanFunctions.ExecuteTemplate(
+            Path.Combine(".", "templates", "ts", "index.ts.scriban"),
+            project, api,
+            Path.Combine(project.Typescript.Folder, "src", "index.ts"));
+
+        // Patch the version number in package.json
+        await Extensions.PatchFile(Path.Combine(project.Typescript.Folder, "package.json"),
+            "\"version\": \"[\\d\\.]+\",",
+            $"\"version\": \"{api.Semver3}\",");
     }
 }

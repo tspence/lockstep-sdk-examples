@@ -13,11 +13,9 @@
  * @link       {{ project.typescript.github_url }}
  */
 
-export { ActionResultModel } from "./models/ActionResultModel";
-export { ErrorResult } from "./models/ErrorResult";
-export { FetchResult } from "./models/FetchResult";
+export { FetchResult } from "./FetchResult";
 export { {{ project.typescript.class_name }} } from "./{{ project.typescript.class_name }}";
-export { {{ project.typescript.response_class }} } from "./models/{{ project.typescript.response_class }}";
+export { {{ project.typescript.response_class }} } from "./{{ project.typescript.response_class }}";
 
 {{~ for cat in api.categories ~}}
 export { {{ cat }}Client } from "./clients/{{ cat }}Client";
@@ -27,7 +25,7 @@ export { {{ cat }}Client } from "./clients/{{ cat }}Client";
 for schema in api.schemas 
   if schema.fields
 ~}}
-export { {{ schema.name }} } from "./models/DataModels";
+export { {{ schema.name }} } from "./models/{{ schema.name }}";
 {{~ 
   end
 end 

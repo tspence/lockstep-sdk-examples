@@ -1,7 +1,5 @@
 from {{ project.python.namespace }}.{{ project.python.class_name | proper_case_to_snake_case }} import {{ project.python.class_name }}
-from {{ project.python.namespace }}.error_result import ErrorResult
 from {{ project.python.namespace }}.{{ project.python.response_class | proper_case_to_snake_case }} import {{ project.python.response_class }}
-from {{ project.python.namespace }}.action_result_model import ActionResultModel
 from {{ project.python.namespace }}.fetch_result import FetchResult
 {{~ for cat in api.categories ~}}
 from {{ project.python.namespace }}.clients.{{ cat | to_snake_case }}_client import {{ cat }}Client
