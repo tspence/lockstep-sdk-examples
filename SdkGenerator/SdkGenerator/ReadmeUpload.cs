@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,6 +34,29 @@ public static class ReadmeUpload
                 {
                     Console.WriteLine($"Exception while parsing model for {schema.Name}: {e}");
                 }
+            }
+        }
+    }
+    
+    public static async Task WriteMarkdownFiles(ApiSchema api, string folder, string format)
+    {
+        foreach (var schema in api.Schemas.Where(schema => schema.Fields != null))
+        {
+            try
+            {
+                var markdownText = format switch
+                {
+                    "table" => MakeMarkdownTable(schema, api),
+                    "list" => MakeMarkdownBulletList(schema, api),
+                    _ => ""
+                };
+
+                var filename = Path.Combine(folder, schema.Name.ToLower() + ".md");
+                await File.WriteAllTextAsync(filename, markdownText);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Exception while parsing model for {schema.Name}: {e}");
             }
         }
     }

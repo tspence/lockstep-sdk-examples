@@ -58,6 +58,12 @@ public static class Program
             Console.WriteLine("Could not parse project file");
             return;
         }
+        
+        // Ensure the folder for collecting swagger files exists
+        if (project.SwaggerSchemaFolder != null)
+        {
+            Directory.CreateDirectory(project.SwaggerSchemaFolder);
+        }
 
         // Fetch the environment and version number
         Console.WriteLine($"Retrieving swagger file from {project.SwaggerUrl}");
@@ -70,20 +76,29 @@ public static class Program
 
         Console.WriteLine($"Retrieved swagger file. Version: {api.Semver2}");
 
-        // Let's do some software development kits!
+        // Let's do some software development kits, if selected
         await TypescriptSdk.Export(project, api);
         await CSharpSdk.Export(project, api);
         await JavaSdk.Export(project, api);
         await RubySdk.Export(project, api);
         await PythonSdk.Export(project, api);
-        Console.WriteLine("Exported SDKs.");
 
-        // Do we want to upload data models to readme?
+        // Where do we want to send the documentation? 
         if (project.Readme != null)
         {
             Console.WriteLine("Uploading data models to Readme...");
             await ReadmeUpload.UploadSchemas(api, project.Readme.ApiKey, "list");
             Console.WriteLine("Uploaded data models to Readme.");
+        }
+        else if (project.SwaggerSchemaFolder != null)
+        {
+            Console.WriteLine($"Writing documentation to {project.SwaggerSchemaFolder}...");
+            await ReadmeUpload.WriteMarkdownFiles(api, project.SwaggerSchemaFolder, "list");
+            Console.WriteLine("Finished writing documentation files.");
+        }
+        else
+        {
+            Console.WriteLine("To output documentation files, specify either a Readme API key or a swagger folder.");
         }
 
         Console.WriteLine("Done!");
