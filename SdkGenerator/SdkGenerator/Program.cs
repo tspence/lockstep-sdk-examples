@@ -1,12 +1,13 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using CommandLine;
 using Newtonsoft.Json;
 using SdkGenerator.Project;
 
 namespace SdkGenerator;
 
-internal static class Program
+public static class Program
 {
     private class Options
     {
@@ -14,9 +15,9 @@ internal static class Program
         public string ProjectFile { get; set; }
     }
 
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        Parser.Default.ParseArguments<Options>(args)
+        await Parser.Default.ParseArguments<Options>(args)
             .WithParsedAsync(async o =>
             {
                 // Retrieve project
@@ -36,6 +37,7 @@ internal static class Program
                 }
 
                 // Fetch the environment and version number
+                Console.WriteLine($"Retrieving swagger file from {project.SwaggerUrl}");
                 var api = await DownloadFile.GenerateApi(project);
                 if (api == null)
                 {
@@ -43,7 +45,7 @@ internal static class Program
                     return;
                 }
 
-                Console.WriteLine($"Retrieving swagger file from {project.SwaggerUrl} (version {api.Semver2})...");
+                Console.WriteLine($"Retrieved swagger file. Version: {api.Semver2}");
 
                 // Let's do some software development kits!
                 await TypescriptSdk.Export(project, api);
@@ -60,6 +62,8 @@ internal static class Program
                     await ReadmeUpload.UploadSchemas(api, project.Readme.ApiKey, "list");
                     Console.WriteLine("Uploaded data models to Readme.");
                 }
-            }).Wait();
+
+                Console.WriteLine("Done!");
+            });
     }
 }

@@ -122,7 +122,7 @@ public static class DownloadFile
         }
 
         // Remove OAuth2 security definition - it's just for Swagger UI
-        jObject["components"]!["securitySchemes"]!["OAuth2"]!.Parent!.Remove();
+        jObject["components"]!["securitySchemes"]!["oauth2"]!.Parent!.Remove();
 
         // Add links to the document data definitions
         if (project.Readme != null)
@@ -161,10 +161,7 @@ public static class DownloadFile
             }
         }
 
-        // Return it back into a string, and rename the security methods to comply with Readme's new naming policy
-        return JsonConvert.SerializeObject(jObject, Formatting.Indented)
-            .Replace("\"Bearer Token\": ", "\"bearer_token\": ")
-            .Replace("\"API Key\": ", "\"api_key\": ");
+        return JsonConvert.SerializeObject(jObject, Formatting.Indented);
     }
 
     /// <summary>

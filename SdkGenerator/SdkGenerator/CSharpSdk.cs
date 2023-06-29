@@ -113,7 +113,7 @@ public static class CSharpSdk
             s += "[]";
         }
 
-        if (s.EndsWith("FetchResult"))
+        if (s.EndsWith("FetchResult") && !s.EndsWith("SummaryFetchResult"))
         {
             s = $"FetchResult<{s[..^11]}>";
         }

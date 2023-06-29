@@ -74,7 +74,7 @@ public static class TypescriptSdk
             s += "[]";
         }
 
-        if (s.EndsWith("FetchResult"))
+        if (s.EndsWith("FetchResult") && !s.EndsWith("SummaryFetchResult"))
         {
             s = $"FetchResult<{s[..^11]}>";
         }
@@ -175,8 +175,7 @@ public static class TypescriptSdk
                     // Figure out the parameter list. For parameters, we'll use ? to indicate nullability.
                     var paramListStr = string.Join(", ", from p in endpoint.Parameters
                         orderby p.Required descending
-                        select
-                            $"{p.Name}{(p.Required ? "" : "?")}: {FixupType(api, p.DataType, p.IsArray, false)}");
+                        select $"{p.Name}{(p.Required ? "" : "?")}: {FixupType(api, p.DataType, p.IsArray, false)}");
 
                     // Do we need to specify options?
                     var options = (from p in endpoint.Parameters where p.Location == "query" select p).ToList();
@@ -194,8 +193,7 @@ public static class TypescriptSdk
                     }
 
                     // Write the method
-                    sb.AppendLine(
-                        $"  {endpoint.Name.ToCamelCase()}({paramListStr}): Promise<{project.Typescript.ResponseClass}<{returnType}>> {{");
+                    sb.AppendLine($"  {endpoint.Name.ToCamelCase()}({paramListStr}): Promise<{project.Typescript.ResponseClass}<{returnType}>> {{");
                     sb.AppendLine($"    const url = `{endpoint.Path.Replace("{", "${")}`;");
                     if (options.Count > 0)
                     {
@@ -213,8 +211,7 @@ public static class TypescriptSdk
                     var hasBody = (from p in endpoint.Parameters where p.Location == "body" select p).Any();
                     var optionsStr = options.Count > 0 ? ", options" : ", null";
                     var bodyStr = isFileUpload ? ", filename" : hasBody ? ", body" : ", null";
-                    sb.AppendLine(
-                        $"    return this.client.{requestMethod}(\"{endpoint.Method}\", url{optionsStr}{bodyStr});");
+                    sb.AppendLine($"    return this.client.{requestMethod}(\"{endpoint.Method}\", url{optionsStr}{bodyStr});");
                     sb.AppendLine("  }");
                 }
             }
@@ -235,7 +232,7 @@ public static class TypescriptSdk
             return;
         }
 
-        if (name.EndsWith("FetchResult"))
+        if (name.EndsWith("FetchResult") && !name.EndsWith("SummaryFetchResult"))
         {
             if (!list.Contains("FetchResult"))
             {

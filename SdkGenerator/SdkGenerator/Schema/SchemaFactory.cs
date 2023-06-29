@@ -115,6 +115,17 @@ public static class SchemaFactory
         return "";
     }
 
+    private static string GetDescriptionMarkdown(JsonElement element, string name)
+    {
+        var s = SafeGetPropString(element, name);
+        if (!string.IsNullOrEmpty(s))
+        {
+            s = s.Replace("<br>", Environment.NewLine);
+        }
+
+        return s;
+    }
+
     private static SchemaRef GetTypeRef(JsonProperty prop)
     {
         // Is this a core type?
@@ -203,14 +214,14 @@ public static class SchemaFactory
                 Path = path,
                 Method = endpointProp.Name,
                 Name = SafeGetPropString(endpointProp.Value, "summary"),
-                DescriptionMarkdown = SafeGetPropString(endpointProp.Value, "description")
+                DescriptionMarkdown = GetDescriptionMarkdown(endpointProp.Value, "description")
             };
             items.Add(item);
 
             // Determine category
             endpointProp.Value.TryGetProperty("tags", out var tags);
             item.Category = tags.ValueKind == JsonValueKind.Array
-                ? tags.EnumerateArray().FirstOrDefault().GetString()
+                ? tags.EnumerateArray().FirstOrDefault().GetString()!.Replace("/", string.Empty)
                 : "Utility";
 
             // Determine if deprecated
@@ -227,7 +238,7 @@ public static class SchemaFactory
                     item.Parameters.Add(p);
                     p.Name = SafeGetPropString(paramProp, "name");
                     p.Location = SafeGetPropString(paramProp, "in");
-                    p.DescriptionMarkdown = SafeGetPropString(paramProp, "description");
+                    p.DescriptionMarkdown = GetDescriptionMarkdown(paramProp, "description");
 
                     // Parse the field's required status
                     paramProp.TryGetProperty("required", out var requiredProp);
@@ -260,7 +271,7 @@ public static class SchemaFactory
                         {
                             Name = "body",
                             Location = "body",
-                            DescriptionMarkdown = SafeGetPropString(requestBodyProp, "description"),
+                            DescriptionMarkdown = GetDescriptionMarkdown(requestBodyProp, "description"),
                             Required = true,
                         };
                         item.Parameters.Add(p);
@@ -302,7 +313,6 @@ public static class SchemaFactory
                     foreach (var responseSchemaProp in appJsonProp.EnumerateObject())
                     {
                         item.ReturnDataType = GetTypeRef(responseSchemaProp);
-
                         break;
                     }
                 }
@@ -315,19 +325,19 @@ public static class SchemaFactory
     private static bool IsValidModel(SchemaItem item)
     {
         var name = item.Name;
-        return !name.EndsWith("Argument")
-               && !name.EndsWith("Attribute")
-               && !name.EndsWith("Base")
-               && !name.EndsWith("Exception")
-               && !name.EndsWith("FetchResult")
-               && !name.EndsWith("Handle")
-               && !name.EndsWith("Info")
-               && !string.Equals(name, "Assembly")
-               && !string.Equals(name, "CustomAttributeData")
-               && !string.Equals(name, "Module")
-               && !string.Equals(name, "MemberBase")
-               && !string.Equals(name, "MethodBase")
-               && !string.Equals(name, "ProblemDetails")
-               && !string.Equals(name, "Type");
+        return name.EndsWith("SummaryFetchResult")
+               || (!name.EndsWith("Argument")
+                   && !name.EndsWith("Attribute")
+                   && !name.EndsWith("Base")
+                   && !name.EndsWith("Exception")
+                   && !name.EndsWith("FetchResult")
+                   && !name.EndsWith("Handle")
+                   && !string.Equals(name, "Assembly")
+                   && !string.Equals(name, "CustomAttributeData")
+                   && !string.Equals(name, "Module")
+                   && !string.Equals(name, "MemberBase")
+                   && !string.Equals(name, "MethodBase")
+                   && !string.Equals(name, "ProblemDetails")
+                   && !string.Equals(name, "Type"));
     }
 }

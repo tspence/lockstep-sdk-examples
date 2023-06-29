@@ -80,7 +80,7 @@ public static class JavaSdk
             s += "[]";
         }
 
-        if (s.EndsWith("FetchResult"))
+        if (s.EndsWith("FetchResult") && !s.EndsWith("SummaryFetchResult"))
         {
             s = $"FetchResult<{s[..^11]}>";
         }
@@ -267,7 +267,7 @@ public static class JavaSdk
                     }
 
                     // Execute the request
-                    if (returnType.Contains("FetchResult"))
+                    if (returnType.Contains("FetchResult") && !returnType.EndsWith("SummaryFetchResult"))
                     {
                         sb.AppendLine($"        return r.Call(new TypeToken<{returnType}>() {{}}.getType());");
                     }
@@ -295,7 +295,7 @@ public static class JavaSdk
 
     private static void AddImport(ApiSchema api, string name, HashSet<string> list)
     {
-        if (name.EndsWith("FetchResult"))
+        if (name.EndsWith("FetchResult") && !name.EndsWith("SummaryFetchResult"))
         {
             list.Add("FetchResult");
             list.Add("type-token");

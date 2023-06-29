@@ -35,7 +35,7 @@ public static class RubySdk
         {
             File.Delete(modelFile);
         }
-        
+
         foreach (var item in api.Schemas)
         {
             if (item.Fields != null)
@@ -104,7 +104,7 @@ public static class RubySdk
         {
             File.Delete(clientsFile);
         }
-        
+
         // Gather a list of unique categories
         foreach (var cat in api.Categories)
         {
@@ -149,7 +149,8 @@ public static class RubySdk
                     sb.AppendLine($"        params = {{{paramObjStr}}}");
                 }
 
-                sb.AppendLine($"        @connection.request(:{endpoint.Method.ToLower()}, path, {bodyParamStr}, {(hasQueryParams ? "params" : "nil")})");
+                sb.AppendLine(
+                    $"        @connection.request(:{endpoint.Method.ToLower()}, path, {bodyParamStr}, {(hasQueryParams ? "params" : "nil")})");
                 sb.AppendLine("    end");
             }
 
@@ -235,7 +236,8 @@ public static class RubySdk
         {
             foreach (var p in parameters)
             {
-                sb.AppendLine($"{prefix} @param {FixupVariableName(p.Name)} [{DataTypeHint(p.DataType)}] {p.DescriptionMarkdown.ToSingleLineMarkdown()}");
+                sb.AppendLine(
+                    $"{prefix} @param {FixupVariableName(p.Name)} [{DataTypeHint(p.DataType)}] {p.DescriptionMarkdown.ToSingleLineMarkdown()}");
             }
         }
 
