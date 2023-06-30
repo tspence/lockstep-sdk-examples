@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Polly;
+using SdkGenerator.Project;
 
 namespace SdkGenerator.Schema;
 
 public static class SchemaFactory
 {
-    public static SchemaItem MakeSchema(JsonProperty jsonSchema)
+    public static SchemaItem MakeSchema(GeneratorContext context, JsonProperty jsonSchema)
     {
         if (jsonSchema.Value.TryGetProperty("properties", out var schemaPropertiesElement))
         {
@@ -22,7 +24,7 @@ public static class SchemaFactory
             // The fetch result generic objects don't have their own description
             if (!item.Name.EndsWith("FetchResult"))
             {
-                item.DescriptionMarkdown = SafeGetPropString(jsonSchema.Value, "description");
+                item.DescriptionMarkdown = SafeGetPropString(context, jsonSchema.Value, "description");
             }
 
             foreach (var prop in schemaPropertiesElement.EnumerateObject())
@@ -33,7 +35,7 @@ public static class SchemaFactory
                 };
 
                 // Let's parse and cleanse the data type in more detail
-                var typeRef = GetTypeRef(prop);
+                var typeRef = GetTypeRef(context, prop);
                 field.DataType = typeRef.DataType;
                 field.DataTypeRef = typeRef.DataTypeRef;
                 field.IsArray = typeRef.IsArray;
@@ -44,7 +46,7 @@ public static class SchemaFactory
                 field.ReadOnly = GetBooleanElement(prop.Value, "readOnly");
                 field.MinLength = GetIntElement(prop.Value, "minLength");
                 field.MaxLength = GetIntElement(prop.Value, "maxLength");
-                field.DescriptionMarkdown = SafeGetPropString(prop.Value, "description");
+                field.DescriptionMarkdown = SafeGetPropString(context, prop.Value, "description");
                 item.Fields.Add(field);
             }
 
@@ -62,8 +64,8 @@ public static class SchemaFactory
                 Fields = null,
                 Enums = new List<int>()
             };
-            item.DescriptionMarkdown = SafeGetPropString(jsonSchema.Value, "description");
-            item.EnumType = SafeGetPropString(jsonSchema.Value, "type");
+            item.DescriptionMarkdown = SafeGetPropString(context, jsonSchema.Value, "description");
+            item.EnumType = SafeGetPropString(context, jsonSchema.Value, "type");
             foreach (var value in enumPropertiesElement.EnumerateArray())
             {
                 if (value.ValueKind == JsonValueKind.Number)
@@ -104,20 +106,20 @@ public static class SchemaFactory
         return false;
     }
 
-    private static string SafeGetPropString(JsonElement element, string name)
+    private static string SafeGetPropString(GeneratorContext context, JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var prop))
         {
             return prop.GetString() ?? "";
         }
 
-        Console.WriteLine($"Missing {name} on element: {element}");
+        context.Log($"Missing {name} on element: {element}");
         return "";
     }
 
-    private static string GetDescriptionMarkdown(JsonElement element, string name)
+    private static string GetDescriptionMarkdown(GeneratorContext context, JsonElement element, string name)
     {
-        var s = SafeGetPropString(element, name);
+        var s = SafeGetPropString(context, element, name);
         if (!string.IsNullOrEmpty(s))
         {
             s = s.Replace("<br>", Environment.NewLine);
@@ -126,7 +128,7 @@ public static class SchemaFactory
         return s;
     }
 
-    private static SchemaRef GetTypeRef(JsonProperty prop)
+    private static SchemaRef GetTypeRef(GeneratorContext context, JsonProperty prop)
     {
         // Is this a core type?
         if (prop.Value.TryGetProperty("type", out var typeElement))
@@ -138,7 +140,7 @@ public static class SchemaFactory
                 {
                     if (innerType.NameEquals("items"))
                     {
-                        var innerSchemaRef = GetTypeRef(innerType);
+                        var innerSchemaRef = GetTypeRef(context, innerType);
                         innerSchemaRef.IsArray = true;
                         return innerSchemaRef;
                     }
@@ -184,7 +186,7 @@ public static class SchemaFactory
             }
         }
 
-        Console.WriteLine($"Missing type: {prop}");
+        context.Log($"Missing type: {prop}");
         return new SchemaRef
         {
             DataType = "object",
@@ -202,7 +204,7 @@ public static class SchemaFactory
         };
     }
 
-    public static List<EndpointItem> MakeEndpoint(JsonProperty prop)
+    public static List<EndpointItem> MakeEndpoint(GeneratorContext context, JsonProperty prop)
     {
         var items = new List<EndpointItem>();
         var path = prop.Name;
@@ -213,8 +215,8 @@ public static class SchemaFactory
                 Parameters = new List<ParameterField>(),
                 Path = path,
                 Method = endpointProp.Name,
-                Name = SafeGetPropString(endpointProp.Value, "summary"),
-                DescriptionMarkdown = GetDescriptionMarkdown(endpointProp.Value, "description")
+                Name = SafeGetPropString(context, endpointProp.Value, "summary"),
+                DescriptionMarkdown = GetDescriptionMarkdown(context, endpointProp.Value, "description")
             };
             items.Add(item);
 
@@ -236,9 +238,9 @@ public static class SchemaFactory
                 {
                     var p = new ParameterField();
                     item.Parameters.Add(p);
-                    p.Name = SafeGetPropString(paramProp, "name");
-                    p.Location = SafeGetPropString(paramProp, "in");
-                    p.DescriptionMarkdown = GetDescriptionMarkdown(paramProp, "description");
+                    p.Name = SafeGetPropString(context, paramProp, "name");
+                    p.Location = SafeGetPropString(context, paramProp, "in");
+                    p.DescriptionMarkdown = GetDescriptionMarkdown(context, paramProp, "description");
 
                     // Parse the field's required status
                     paramProp.TryGetProperty("required", out var requiredProp);
@@ -249,7 +251,7 @@ public static class SchemaFactory
                     {
                         if (paramSchemaProp.NameEquals("schema"))
                         {
-                            var schemaRef = GetTypeRef(paramSchemaProp);
+                            var schemaRef = GetTypeRef(context, paramSchemaProp);
                             p.DataType = schemaRef.DataType;
                             p.DataTypeRef = schemaRef.DataTypeRef;
                             p.IsArray = schemaRef.IsArray;
@@ -271,7 +273,7 @@ public static class SchemaFactory
                         {
                             Name = "body",
                             Location = "body",
-                            DescriptionMarkdown = GetDescriptionMarkdown(requestBodyProp, "description"),
+                            DescriptionMarkdown = GetDescriptionMarkdown(context, requestBodyProp, "description"),
                             Required = true,
                         };
                         item.Parameters.Add(p);
@@ -279,7 +281,7 @@ public static class SchemaFactory
                         {
                             if (innerSchemaProp.NameEquals("schema"))
                             {
-                                var typeRef = GetTypeRef(innerSchemaProp);
+                                var typeRef = GetTypeRef(context, innerSchemaProp);
                                 p.DataType = typeRef.DataType;
                                 p.DataTypeRef = typeRef.DataTypeRef;
                                 p.IsArray = typeRef.IsArray;
@@ -312,7 +314,7 @@ public static class SchemaFactory
                     contentProp.TryGetProperty("application/json", out var appJsonProp);
                     foreach (var responseSchemaProp in appJsonProp.EnumerateObject())
                     {
-                        item.ReturnDataType = GetTypeRef(responseSchemaProp);
+                        item.ReturnDataType = GetTypeRef(context, responseSchemaProp);
                         break;
                     }
                 }

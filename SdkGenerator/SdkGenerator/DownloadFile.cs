@@ -62,12 +62,12 @@ public static class DownloadFile
     /// The version number is year.month.build (EX. 21.0.629)
     /// In general semver is supposed to be three digits, but some have four, so let's make all possibilities
     /// </summary>
-    /// <param name="project"></param>
+    /// <param name="context"></param>
     /// <returns></returns>
-    private static async Task<string> FindVersionNumber(ProjectSchema project)
+    private static async Task<string> FindVersionNumber(GeneratorContext context)
     {
-        if (string.IsNullOrWhiteSpace(project.VersionNumberUrl) ||
-            string.IsNullOrWhiteSpace(project.VersionNumberRegex))
+        if (string.IsNullOrWhiteSpace(context.Project.VersionNumberUrl) ||
+            string.IsNullOrWhiteSpace(context.Project.VersionNumberRegex))
         {
             return "1.0.0.0";
         }
@@ -76,8 +76,8 @@ public static class DownloadFile
         try
         {
             var contents = await HttpRetryPolicy.ExecuteAsync(async ct =>
-                await HttpClient.GetStringAsync(project.VersionNumberUrl, ct), CancellationToken.None);
-            var r = new Regex(project.VersionNumberRegex);
+                await HttpClient.GetStringAsync(context.Project.VersionNumberUrl, ct), CancellationToken.None);
+            var r = new Regex(context.Project.VersionNumberRegex);
             var match = r.Match(contents);
             if (match.Success)
             {
@@ -86,7 +86,7 @@ public static class DownloadFile
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load {project.VersionNumberUrl}: {ex.Message}");
+            context.Log($"Failed to load {context.Project.VersionNumberUrl}: {ex.Message}");
         }
 
         return "1.0.0.0";
@@ -179,7 +179,7 @@ public static class DownloadFile
         var schemas = components.GetProperty("schemas");
         foreach (var schema in schemas.EnumerateObject())
         {
-            var item = SchemaFactory.MakeSchema(schema);
+            var item = SchemaFactory.MakeSchema(context, schema);
             if (item != null)
             {
                 schemaList.Add(item);
@@ -242,7 +242,7 @@ public static class DownloadFile
         var paths = doc.RootElement.GetProperty("paths");
         foreach (var endpoint in paths.EnumerateObject())
         {
-            var item = SchemaFactory.MakeEndpoint(endpoint);
+            var item = SchemaFactory.MakeEndpoint(context, endpoint);
             if (item != null)
             {
                 endpointList.AddRange(item);
@@ -263,12 +263,12 @@ public static class DownloadFile
 
     public static async Task<ApiSchema> GenerateApi(GeneratorContext context)
     {
-        context.Version4 = await FindVersionNumber(context.Project);
+        context.Version4 = await FindVersionNumber(context);
 
         // If we couldn't download the version number, don't try generating anything
         if (context.Version4 == "1.0.0.0")
         {
-            Console.WriteLine("Unable to find version number using regex");
+            context.Log("Unable to find version number using regex");
             return null;
         }
 

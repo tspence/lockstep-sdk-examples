@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Polly;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
@@ -164,24 +165,24 @@ public static class PythonSdk
         }
     }
 
-    private static async Task ExportEndpoints(ProjectSchema project, ApiSchema api)
+    private static async Task ExportEndpoints(GeneratorContext context)
     {
-        var clientsDir = Path.Combine(project.Python.Folder, "src", project.Python.Namespace, "clients");
+        var clientsDir = Path.Combine(context.Project.Python.Folder, "src", context.Project.Python.Namespace, "clients");
         await CleanModuleDirectory(clientsDir);
 
         // Gather a list of unique categories
-        foreach (var cat in api.Categories)
+        foreach (var cat in context.Api.Categories)
         {
             var sb = new StringBuilder();
 
             // Let's see if we have to do any imports
-            var imports = BuildImports(project, api, cat);
+            var imports = BuildImports(context.Project, context.Api, cat);
 
             // Construct header
-            sb.Append(FileHeader(project));
+            sb.Append(FileHeader(context.Project));
             sb.AppendLine(
-                $"from {project.Python.Namespace}.{project.Python.ResponseClass.ProperCaseToSnakeCase()} import {project.Python.ResponseClass}");
-            sb.AppendLine($"from {project.Python.Namespace}.models.errorresult import ErrorResult");
+                $"from {context.Project.Python.Namespace}.{context.Project.Python.ResponseClass.ProperCaseToSnakeCase()} import {context.Project.Python.ResponseClass}");
+            sb.AppendLine($"from {context.Project.Python.Namespace}.models.errorresult import ErrorResult");
             foreach (var import in imports.Distinct())
             {
                 sb.AppendLine(import);
@@ -193,13 +194,13 @@ public static class PythonSdk
             sb.AppendLine($"    API methods related to {cat}");
             sb.AppendLine("    \"\"\"");
             sb.AppendLine(
-                $"    from {project.Python.Namespace}.{project.Python.ClassName.ProperCaseToSnakeCase()} import {project.Python.ClassName}");
+                $"    from {context.Project.Python.Namespace}.{context.Project.Python.ClassName.ProperCaseToSnakeCase()} import {context.Project.Python.ClassName}");
             sb.AppendLine();
-            sb.AppendLine($"    def __init__(self, client: {project.Python.ClassName}):");
+            sb.AppendLine($"    def __init__(self, client: {context.Project.Python.ClassName}):");
             sb.AppendLine("        self.client = client");
 
             // Run through all APIs
-            foreach (var endpoint in api.Endpoints)
+            foreach (var endpoint in context.Api.Endpoints)
             {
                 if (endpoint.Category == cat && !endpoint.Deprecated)
                 {
@@ -207,12 +208,12 @@ public static class PythonSdk
 
                     // Is this a file download API?
                     var isFileDownload = endpoint.ReturnDataType.DataType is "byte[]" or "binary" or "File";
-                    var originalReturnDataType = FixupType(api, endpoint.ReturnDataType.DataType,
+                    var originalReturnDataType = FixupType(context.Api, endpoint.ReturnDataType.DataType,
                         endpoint.ReturnDataType.IsArray, isReturnHint: true);
                     string returnDataType;
                     if (!isFileDownload)
                     {
-                        returnDataType = $"{project.Python.ResponseClass}[{originalReturnDataType}]";
+                        returnDataType = $"{context.Project.Python.ResponseClass}[{originalReturnDataType}]";
                     }
                     else
                     {
@@ -221,13 +222,13 @@ public static class PythonSdk
 
                     // Figure out the parameter list
                     var hasBody = (from p in endpoint.Parameters where p.Location == "body" select p).Any();
-                    var paramListStr = string.Join(", ", from p in endpoint.Parameters select $"{p.Name}: {FixupType(api, p.DataType, p.IsArray, isParamHint: true)}");
+                    var paramListStr = string.Join(", ", from p in endpoint.Parameters select $"{p.Name}: {FixupType(context.Api, p.DataType, p.IsArray, isParamHint: true)}");
                     var bodyJson = string.Join(", ", from p in endpoint.Parameters where p.Location == "query" select $"\"{p.Name}\": {p.Name}");
                     var fileUploadParam = (from p in endpoint.Parameters where p.Location == "form" select p).FirstOrDefault();
 
                     // Write the method
                     sb.AppendLine($"    def {endpoint.Name.ToSnakeCase()}(self, {paramListStr}) -> {returnDataType}:");
-                    sb.Append(MakePythonDoc(api, endpoint.DescriptionMarkdown, 8, endpoint.Parameters));
+                    sb.Append(MakePythonDoc(context.Api, endpoint.DescriptionMarkdown, 8, endpoint.Parameters));
                     sb.AppendLine(endpoint.Path.Contains('{')
                         ? $"        path = f\"{endpoint.Path}\""
                         : $"        path = \"{endpoint.Path}\"");
@@ -244,24 +245,24 @@ public static class PythonSdk
                         {
                             // Use a list comprehension to unpack array responses
                             sb.AppendLine(
-                                $"            return {project.Python.ResponseClass}(True, result.status_code, [{endpoint.ReturnDataType.DataType}(**item) for item in result.json()], None)");
+                                $"            return {context.Project.Python.ResponseClass}(True, result.status_code, [{endpoint.ReturnDataType.DataType}(**item) for item in result.json()], None)");
                         }
                         else if (originalReturnDataType.StartsWith("FetchResult", StringComparison.OrdinalIgnoreCase))
                         {
                             // Fetch results don't unpack as expected, use from_json helper method
                             sb.AppendLine(
-                                $"            return {project.Python.ResponseClass}(True, result.status_code, FetchResult.from_json(result.json(), {endpoint.ReturnDataType.DataType[..^11]}), None)");                            
-                            Console.WriteLine("halp");
+                                $"            return {context.Project.Python.ResponseClass}(True, result.status_code, FetchResult.from_json(result.json(), {endpoint.ReturnDataType.DataType[..^11]}), None)");                            
+                            context.Log("halp");
                         }
                         else
                         {
                             sb.AppendLine(
-                                $"            return {project.Python.ResponseClass}(True, result.status_code, {originalReturnDataType}(**result.json()), None)");
+                                $"            return {context.Project.Python.ResponseClass}(True, result.status_code, {originalReturnDataType}(**result.json()), None)");
                         }
 
                         sb.AppendLine("        else:");
                         sb.AppendLine(
-                            $"            return {project.Python.ResponseClass}(False, result.status_code, None, ErrorResult.from_json(result.json()))");
+                            $"            return {context.Project.Python.ResponseClass}(False, result.status_code, None, ErrorResult.from_json(result.json()))");
                     }
                 }
             }
@@ -376,18 +377,16 @@ public static class PythonSdk
         }
 
         await ExportSchemas(context.Project, context.Api);
-        await ExportEndpoints(context.Project, context.Api);
+        await ExportEndpoints(context);
 
         // Let's try using Scriban to populate these files
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "python", "ApiClient.py.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Python.Folder, "src", context.Project.Python.Namespace, context.Project.Python.ClassName.ProperCaseToSnakeCase() + ".py"));
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "python", "__init__.py.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Python.Folder, "src", context.Project.Python.Namespace, "__init__.py"));
-        await Extensions.PatchFile(Path.Combine(context.Project.Python.Folder, "setup.cfg"), "version = [\\d\\.]+",
+        await Extensions.PatchFile(context, Path.Combine(context.Project.Python.Folder, "setup.cfg"), "version = [\\d\\.]+",
             $"version = {context.OfficialVersion}");
     }
 }

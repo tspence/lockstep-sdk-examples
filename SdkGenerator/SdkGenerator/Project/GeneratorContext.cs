@@ -21,7 +21,7 @@ public class GeneratorContext : IDisposable
     {
     }
 
-    public async Task Log(string message)
+    public void Log(string message)
     {
         if (ErrorStream == null && Project.SwaggerSchemaFolder != null)
         {
@@ -29,7 +29,7 @@ public class GeneratorContext : IDisposable
         }
         if (ErrorStream != null)
         {
-            await ErrorStream.WriteLineAsync(message);
+            ErrorStream.WriteLine(message);
         }
     }
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
 namespace SdkGenerator;
@@ -229,11 +230,11 @@ public static class Extensions
         return sb.ToString().TrimEnd();
     }
 
-    public static async Task PatchFile(string filename, string regex, string replacement)
+    public static async Task PatchFile(GeneratorContext context, string filename, string regex, string replacement)
     {
         if (!File.Exists(filename))
         {
-            Console.WriteLine($"Unable to find file {filename}");
+            context.Log($"Unable to find file {filename}");
             return;
         }
 
@@ -246,7 +247,7 @@ public static class Extensions
         }
         else
         {
-            Console.WriteLine($"Failed to patch file {filename} - no match found.");
+            context.Log($"Failed to patch file {filename} - no match found.");
         }
     }
 

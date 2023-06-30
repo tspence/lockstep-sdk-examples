@@ -11,7 +11,7 @@ namespace SdkGenerator;
 
 public static class ScribanFunctions
 {
-    public static async Task ExecuteTemplate(string templateName, ProjectSchema project, ApiSchema api, string outputFile)
+    public static async Task ExecuteTemplate(GeneratorContext context, string templateName, string outputFile)
     {
         try
         {
@@ -20,16 +20,16 @@ public static class ScribanFunctions
             var template = Template.Parse(templateText);
             var scriptObject1 = new ScriptObject();
             scriptObject1.Import(typeof(Extensions));
-            var context = new TemplateContext();
-            context.PushGlobal(scriptObject1);
-            context.SetValue(new ScriptVariableGlobal("api"), api);
-            context.SetValue(new ScriptVariableGlobal("project"), project);
+            var templateContext = new TemplateContext();
+            templateContext.PushGlobal(scriptObject1);
+            templateContext.SetValue(new ScriptVariableGlobal("api"), context.Api);
+            templateContext.SetValue(new ScriptVariableGlobal("project"), context.Project);
             var result = await template.RenderAsync(context);
             await File.WriteAllTextAsync(outputFile, result);
         }
         catch (Exception e)
         {
-            Console.WriteLine(e.Message);
+            context.Log($"Failed to execute template {templateName}: {e.Message}");
         }
     }
 }

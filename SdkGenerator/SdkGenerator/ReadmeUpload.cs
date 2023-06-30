@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Polly;
 using RestSharp;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
@@ -29,11 +30,11 @@ public static class ReadmeUpload
                         _ => ""
                     };
 
-                    await UploadToReadme(context.Project.Readme.ApiKey, schema.Name, order++, markdownText);
+                    await UploadToReadme(context, schema.Name, order++, markdownText);
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Exception while parsing model for {schema.Name}: {e}");
+                    context.Log($"Exception while parsing model for {schema.Name}: {e}");
                 }
             }
         }
@@ -57,7 +58,7 @@ public static class ReadmeUpload
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Exception while parsing model for {schema.Name}: {e}");
+                context.Log($"Exception while parsing model for {schema.Name}: {e}");
             }
         }
     }
@@ -327,7 +328,7 @@ public static class ReadmeUpload
         public int Order { get; set; }
     }
 
-    private static async Task UploadToReadme(string readmeApiKey, string schemaName, int order, string markdown)
+    private static async Task UploadToReadme(GeneratorContext context, string schemaName, int order, string markdown)
     {
         var docName = $"/api/v1/docs/{schemaName.ToLower()}";
         var doc = new ReadmeDocModel
@@ -340,16 +341,16 @@ public static class ReadmeUpload
         };
 
         // Check to see if the model exists
-        var modelExists = await CallReadme(readmeApiKey, docName, Method.Get);
+        var modelExists = await CallReadme(context.Project.Readme.ApiKey, docName, Method.Get);
         if (modelExists.IsSuccessful)
         {
-            var result = await CallReadme(readmeApiKey, docName, Method.Put, JsonConvert.SerializeObject(doc));
-            Console.WriteLine($"Updated {schemaName}: {result.StatusCode}");
+            var result = await CallReadme(context.Project.Readme.ApiKey, docName, Method.Put, JsonConvert.SerializeObject(doc));
+            context.Log($"Updated {schemaName}: {result.StatusCode}");
         }
         else
         {
-            var result = await CallReadme(readmeApiKey, "/api/v1/docs", Method.Post, JsonConvert.SerializeObject(doc));
-            Console.WriteLine($"Created {schemaName}: {result.StatusCode}");
+            var result = await CallReadme(context.Project.Readme.ApiKey, "/api/v1/docs", Method.Post, JsonConvert.SerializeObject(doc));
+            context.Log($"Created {schemaName}: {result.StatusCode}");
         }
     }
 }
