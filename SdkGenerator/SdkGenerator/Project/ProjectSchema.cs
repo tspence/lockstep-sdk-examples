@@ -78,6 +78,11 @@ public class ReadmeSiteSchema
     /// An API key to use to communicate with Readme
     /// </summary>
     public string ApiKey { get; set; }
+
+    /// <summary>
+    /// The Readme ID of the category where these models will be saved
+    /// </summary>
+    public string ModelCategory { get; set; }
 }
 
 public class LanguageSchema

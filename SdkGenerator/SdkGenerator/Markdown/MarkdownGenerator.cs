@@ -333,17 +333,20 @@ public static class MarkdownGenerator
         var docName = $"/api/v1/docs/{schemaName.ToLower()}";
         var doc = new ReadmeDocModel
         {
-            Hidden = false,
+            Hidden = true,
             Order = order,
             Title = schemaName,
             Body = markdown,
-            Category = "6169fb9ea16b55001fa1f4cf"
+            Category = context.Project.Readme.ModelCategory,
         };
 
         // Check to see if the model exists
         var modelExists = await CallReadme(context.Project.Readme.ApiKey, docName, Method.Get);
         if (modelExists.IsSuccessful)
         {
+            // Preserve the "hidden" status - only a human being can approve the doc and make it visible
+            var existingDoc = JsonConvert.DeserializeObject<ReadmeDocModel>(modelExists.Content);
+            doc.Hidden = existingDoc.Hidden;
             var result = await CallReadme(context.Project.Readme.ApiKey, docName, Method.Put, JsonConvert.SerializeObject(doc));
             context.Log($"Updated {schemaName}: {result.StatusCode}");
         }
