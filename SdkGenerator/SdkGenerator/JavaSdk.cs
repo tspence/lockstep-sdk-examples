@@ -388,16 +388,15 @@ public static class JavaSdk
         await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "java", "ApiClient.java.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Java.Folder, "src", "main", "java",
                 context.Project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar),
                 context.Project.Java.ClassName + ".java"));
-        await Extensions.PatchFile(Path.Combine(context.Project.Java.Folder, "pom.xml"),
+        await Extensions.PatchFile(context, Path.Combine(context.Project.Java.Folder, "pom.xml"),
             $"<artifactId>{context.Project.Java.ModuleName.ToLower()}<\\/artifactId>\\s+<version>[\\d\\.]+<\\/version>",
             $"<artifactId>{context.Project.Java.ModuleName.ToLower()}</artifactId>\r\n    <version>{context.OfficialVersion}</version>");
-        await Extensions.PatchFile(
+        await Extensions.PatchFile(context, 
             Path.Combine(context.Project.Java.Folder, "src", "main", "java",
                 context.Project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar), "RestRequest.java"),
             "request.addHeader\\(\"SdkVersion\", \"[\\d\\.]+\"\\);",

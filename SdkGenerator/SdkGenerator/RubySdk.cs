@@ -259,20 +259,19 @@ public static class RubySdk
         var rubyGemspecPath = Path.Combine(context.Project.Ruby.Folder, context.Project.Ruby.ModuleName + ".gemspec");
 
         // Let's try using Scriban to populate these files
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "ruby", "ApiClient.rb.scriban"),
-            context.Project, context.Api,
             Path.Combine(rubyModulePath, context.Project.Ruby.ClassName.ProperCaseToSnakeCase() + ".rb"));
-        await Extensions.PatchFile(Path.Combine(rubyModulePath, "version.rb"),
+        await Extensions.PatchFile(context, Path.Combine(rubyModulePath, "version.rb"),
             "VERSION = \"[\\d\\.]+\"",
             $"VERSION = \"{context.OfficialVersion}\"");
-        await Extensions.PatchFile(rubyGemspecPath,
+        await Extensions.PatchFile(context, rubyGemspecPath,
             "s.version = '[\\d\\.]+'",
             $"s.version = '{context.OfficialVersion}'");
-        await Extensions.PatchFile(rubyGemspecPath,
+        await Extensions.PatchFile(context, rubyGemspecPath,
             "s.date = '[\\d-]+'",
             $"s.date = '{DateTime.Today:yyyy-MM-dd}'");
-        await Extensions.PatchFile(Path.Combine(context.Project.Ruby.Folder, "Gemfile.lock"),
+        await Extensions.PatchFile(context, Path.Combine(context.Project.Ruby.Folder, "Gemfile.lock"),
             $"{context.Project.Ruby.ModuleName} \\([\\d\\.]+\\)",
             $"{context.Project.Ruby.ModuleName} ({context.OfficialVersion})");
     }

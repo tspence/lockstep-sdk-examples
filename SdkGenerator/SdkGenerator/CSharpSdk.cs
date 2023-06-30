@@ -339,13 +339,11 @@ public static class CSharpSdk
         await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "csharp", "ApiClient.cs.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Csharp.Folder, "src", context.Project.Csharp.ClassName + ".cs"));
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "csharp", "sdk.nuspec.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Csharp.Folder, context.Project.Csharp.ClassName + ".nuspec"));
     }
 }

@@ -334,17 +334,15 @@ public static class TypescriptSdk
         await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context, 
             Path.Combine(".", "templates", "ts", "ApiClient.ts.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Typescript.Folder, "src", context.Project.Typescript.ClassName + ".ts"));
-        await ScribanFunctions.ExecuteTemplate(
+        await ScribanFunctions.ExecuteTemplate(context,
             Path.Combine(".", "templates", "ts", "index.ts.scriban"),
-            context.Project, context.Api,
             Path.Combine(context.Project.Typescript.Folder, "src", "index.ts"));
 
         // Patch the version number in package.json
-        await Extensions.PatchFile(Path.Combine(context.Project.Typescript.Folder, "package.json"),
+        await Extensions.PatchFile(context, Path.Combine(context.Project.Typescript.Folder, "package.json"),
             "\"version\": \"[\\d\\.]+\",",
             $"\"version\": \"{context.OfficialVersion}\",");
     }
