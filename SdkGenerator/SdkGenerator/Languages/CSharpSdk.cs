@@ -8,7 +8,7 @@ using System.Web;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
-namespace SdkGenerator;
+namespace SdkGenerator.Languages;
 
 public static class CSharpSdk
 {

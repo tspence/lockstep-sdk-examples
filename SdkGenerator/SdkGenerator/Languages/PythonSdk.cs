@@ -4,11 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Polly;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
-namespace SdkGenerator;
+namespace SdkGenerator.Languages;
 
 public static class PythonSdk
 {

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
-namespace SdkGenerator;
+namespace SdkGenerator.Languages;
 
 public static class TypescriptSdk
 {

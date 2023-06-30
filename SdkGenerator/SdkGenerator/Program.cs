@@ -3,6 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using CommandLine;
 using Newtonsoft.Json;
+using SdkGenerator.Languages;
+using SdkGenerator.Markdown;
 using SdkGenerator.Project;
 
 namespace SdkGenerator;
@@ -66,13 +68,13 @@ public static class Program
         if (context.Project?.Readme?.ApiKey != null)
         {
             Console.WriteLine("Uploading data models to Readme...");
-            await ReadmeUpload.UploadSchemas(context, "list");
+            await MarkdownGenerator.UploadSchemas(context, "list");
             Console.WriteLine("Uploaded data models to Readme.");
         }
         else if (context.Project?.SwaggerSchemaFolder != null)
         {
             Console.WriteLine($"Writing documentation to {context.Project.SwaggerSchemaFolder}...");
-            await ReadmeUpload.WriteMarkdownFiles(context, "list");
+            await MarkdownGenerator.WriteMarkdownFiles(context, "list");
             Console.WriteLine("Finished writing documentation files.");
         }
         else
