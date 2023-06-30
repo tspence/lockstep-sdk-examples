@@ -17,6 +17,13 @@ public class ProjectSchema
     /// </summary>
     public int? SemverMode { get; set; }
     
+    /// <summary>
+    /// Any class that ends with one of these generic suffixes is considered
+    /// an object that doesn't need its own documentation; instead it is represented
+    /// by the official version of that generic.
+    /// </summary>
+    public string[] GenericSuffixes { get; set; }
+    
     public EnvironmentSchema[] Environments { get; set; }
     public string SwaggerSchemaFolder { get; set; }
     public string Keywords { get; set; }

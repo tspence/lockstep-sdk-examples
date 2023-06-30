@@ -21,12 +21,6 @@ public static class SchemaFactory
                 Fields = new List<SchemaField>()
             };
 
-            // The fetch result generic objects don't have their own description
-            if (!item.Name.EndsWith("FetchResult"))
-            {
-                item.DescriptionMarkdown = SafeGetPropString(context, jsonSchema.Value, "description");
-            }
-
             foreach (var prop in schemaPropertiesElement.EnumerateObject())
             {
                 var field = new SchemaField
@@ -50,7 +44,7 @@ public static class SchemaFactory
                 item.Fields.Add(field);
             }
 
-            if (IsValidModel(item))
+            if (IsValidModel(context, item))
             {
                 return item;
             }
@@ -74,7 +68,7 @@ public static class SchemaFactory
                 }
             }
 
-            if (IsValidModel(item) && !string.IsNullOrWhiteSpace(item.DescriptionMarkdown))
+            if (IsValidModel(context, item) && !string.IsNullOrWhiteSpace(item.DescriptionMarkdown))
             {
                 return item;
             }
@@ -324,15 +318,29 @@ public static class SchemaFactory
         return items;
     }
 
-    private static bool IsValidModel(SchemaItem item)
+    private static bool IsValidModel(GeneratorContext context, SchemaItem item)
     {
         var name = item.Name;
-        return name.EndsWith("SummaryFetchResult")
-               || (!name.EndsWith("Argument")
+        
+        // In the DotNet world, Swashbuckle will create unique models for each generic
+        // of type MyGenericClass<MyObject> in the name format MyObjectMyGenericClass.
+        // Therefore, we consider the names of generics as suffixes as items to ignore.
+        // Important that we don't exclude the object itself though!
+        if (context.Project.GenericSuffixes != null)
+        {
+            foreach (var suffix in context.Project.GenericSuffixes)
+            {
+                if (name.EndsWith(suffix, StringComparison.InvariantCultureIgnoreCase) && !name.Equals(suffix, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return false;
+                }
+            }    
+        }
+        
+        return !name.EndsWith("Argument")
                    && !name.EndsWith("Attribute")
                    && !name.EndsWith("Base")
                    && !name.EndsWith("Exception")
-                   && !name.EndsWith("FetchResult")
                    && !name.EndsWith("Handle")
                    && !string.Equals(name, "Assembly")
                    && !string.Equals(name, "CustomAttributeData")
@@ -340,6 +348,6 @@ public static class SchemaFactory
                    && !string.Equals(name, "MemberBase")
                    && !string.Equals(name, "MethodBase")
                    && !string.Equals(name, "ProblemDetails")
-                   && !string.Equals(name, "Type"));
+                   && !string.Equals(name, "Type");
     }
 }
