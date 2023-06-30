@@ -20,6 +20,7 @@ public static class SchemaFactory
                 // Handle fields
                 Fields = new List<SchemaField>()
             };
+            item.DescriptionMarkdown = SafeGetPropString(context, jsonSchema.Value, "description");
 
             foreach (var prop in schemaPropertiesElement.EnumerateObject())
             {
