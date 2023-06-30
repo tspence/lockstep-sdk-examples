@@ -10,9 +10,9 @@ using RestSharp;
 using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
-namespace SdkGenerator;
+namespace SdkGenerator.Markdown;
 
-public static class ReadmeUpload
+public static class MarkdownGenerator
 {
     public static async Task UploadSchemas(GeneratorContext context, string format)
     {
@@ -254,7 +254,7 @@ public static class ReadmeUpload
         var sb = new StringBuilder();
         var modifiers = new List<string>
         {
-            string.IsNullOrWhiteSpace(field.DataTypeRef)
+            !string.IsNullOrWhiteSpace(field.DataTypeRef)
                 ? $"[{field.DataType}]({field.DataTypeRef}){(field.IsArray ? "[]" : "")}"
                 : $"{field.DataType}{(field.IsArray ? "[]" : "")}"
         };
