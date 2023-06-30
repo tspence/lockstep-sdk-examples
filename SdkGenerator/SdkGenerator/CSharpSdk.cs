@@ -328,24 +328,24 @@ public static class CSharpSdk
         }
     }
 
-    public static async Task Export(ProjectSchema project, ApiSchema api)
+    public static async Task Export(GeneratorContext context)
     {
-        if (project.Csharp == null)
+        if (context.Project.Csharp == null)
         {
             return;
         }
 
-        await ExportSchemas(project, api);
-        await ExportEndpoints(project, api);
+        await ExportSchemas(context.Project, context.Api);
+        await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "csharp", "ApiClient.cs.scriban"),
-            project, api,
-            Path.Combine(project.Csharp.Folder, "src", project.Csharp.ClassName + ".cs"));
+            context.Project, context.Api,
+            Path.Combine(context.Project.Csharp.Folder, "src", context.Project.Csharp.ClassName + ".cs"));
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "csharp", "sdk.nuspec.scriban"),
-            project, api,
-            Path.Combine(project.Csharp.Folder, project.Csharp.ClassName + ".nuspec"));
+            context.Project, context.Api,
+            Path.Combine(context.Project.Csharp.Folder, context.Project.Csharp.ClassName + ".nuspec"));
     }
 }

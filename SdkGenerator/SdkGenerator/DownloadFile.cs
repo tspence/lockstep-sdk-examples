@@ -167,16 +167,11 @@ public static class DownloadFile
     /// <summary>
     /// Export data definitions to their own markdown files
     /// </summary>
-    /// <param name="project">The file location</param>
-    /// <param name="swaggerJson">The file location</param>
-    /// <param name="version2">The short version number (year.week)</param>
-    /// <param name="version3">The short version number (year.week)</param>
-    /// <param name="version4">The full version number (year.week.build)</param>
-    private static ApiSchema GatherSchemas(ProjectSchema project, string swaggerJson, string version2, string version3,
-        string version4)
+    /// <param name="context">The SDK generator context</param>
+    private static ApiSchema GatherSchemas(GeneratorContext context)
     {
         // Gather schemas from the file
-        using var doc = JsonDocument.Parse(swaggerJson);
+        using var doc = JsonDocument.Parse(context.SwaggerJson);
 
         // Collect all the schemas / data models
         var schemaList = new List<SchemaItem>();
@@ -257,38 +252,40 @@ public static class DownloadFile
         // Convert into an API schema
         return new ApiSchema
         {
-            Semver2 = version2,
-            Semver3 = version3,
-            Semver4 = version4,
+            Semver2 = context.Version2,
+            Semver3 = context.Version3,
+            Semver4 = context.Version4,
             Schemas = schemaList.OrderBy(s => s.Name).ToList(),
             Endpoints = endpointList,
             Categories = (from e in endpointList where !e.Deprecated orderby e.Category select e.Category).Distinct().ToList()
         };
     }
 
-    public static async Task<ApiSchema> GenerateApi(ProjectSchema project)
+    public static async Task<ApiSchema> GenerateApi(GeneratorContext context)
     {
-        var version4 = await FindVersionNumber(project);
+        context.Version4 = await FindVersionNumber(context.Project);
 
         // If we couldn't download the version number, don't try generating anything
-        if (version4 == "1.0.0.0")
+        if (context.Version4 == "1.0.0.0")
         {
+            Console.WriteLine("Unable to find version number using regex");
             return null;
         }
 
-        var segments = version4.Split(".");
-        var version2 = $"{segments[0]}.{segments[1]}";
-        var version3 = $"{segments[0]}.{segments[1]}.{segments[2]}";
-        var swaggerJson = await DownloadSwagger(project, version2);
+        var segments = context.Version4.Split(".");
+        context.Version2 = $"{segments[0]}.{segments[1]}";
+        context.Version3 = $"{segments[0]}.{segments[1]}.{segments[2]}";
+        context.OfficialVersion = context.Project.SemverMode == 3 ? context.Version3 : context.Version2;
+        context.SwaggerJson = await DownloadSwagger(context.Project, context.OfficialVersion);
 
         // Save to the swagger folder
-        if (Directory.Exists(project.SwaggerSchemaFolder))
+        if (Directory.Exists(context.Project.SwaggerSchemaFolder))
         {
-            var swaggerFilePath = Path.Combine(project.SwaggerSchemaFolder, $"swagger-{version2}.json");
-            await File.WriteAllTextAsync(swaggerFilePath, swaggerJson);
+            var swaggerFilePath = Path.Combine(context.Project.SwaggerSchemaFolder, $"swagger-{context.OfficialVersion}.json");
+            await File.WriteAllTextAsync(swaggerFilePath, context.SwaggerJson);
         }
 
         // Export data definitions to markdown files
-        return GatherSchemas(project, swaggerJson, version2, version3, version4);
+        return GatherSchemas(context);
     }
 }

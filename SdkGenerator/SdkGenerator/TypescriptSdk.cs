@@ -323,29 +323,29 @@ public static class TypescriptSdk
         return imports;
     }
 
-    public static async Task Export(ProjectSchema project, ApiSchema api)
+    public static async Task Export(GeneratorContext context)
     {
-        if (project.Typescript == null)
+        if (context.Project.Typescript == null)
         {
             return;
         }
 
-        await ExportSchemas(project, api);
-        await ExportEndpoints(project, api);
+        await ExportSchemas(context.Project, context.Api);
+        await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "ts", "ApiClient.ts.scriban"),
-            project, api,
-            Path.Combine(project.Typescript.Folder, "src", project.Typescript.ClassName + ".ts"));
+            context.Project, context.Api,
+            Path.Combine(context.Project.Typescript.Folder, "src", context.Project.Typescript.ClassName + ".ts"));
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "ts", "index.ts.scriban"),
-            project, api,
-            Path.Combine(project.Typescript.Folder, "src", "index.ts"));
+            context.Project, context.Api,
+            Path.Combine(context.Project.Typescript.Folder, "src", "index.ts"));
 
         // Patch the version number in package.json
-        await Extensions.PatchFile(Path.Combine(project.Typescript.Folder, "package.json"),
+        await Extensions.PatchFile(Path.Combine(context.Project.Typescript.Folder, "package.json"),
             "\"version\": \"[\\d\\.]+\",",
-            $"\"version\": \"{api.Semver3}\",");
+            $"\"version\": \"{context.OfficialVersion}\",");
     }
 }

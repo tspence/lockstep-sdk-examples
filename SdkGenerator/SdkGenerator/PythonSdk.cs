@@ -368,26 +368,26 @@ public static class PythonSdk
         return sb.ToString();
     }
 
-    public static async Task Export(ProjectSchema project, ApiSchema api)
+    public static async Task Export(GeneratorContext context)
     {
-        if (project.Python == null)
+        if (context.Project.Python == null)
         {
             return;
         }
 
-        await ExportSchemas(project, api);
-        await ExportEndpoints(project, api);
+        await ExportSchemas(context.Project, context.Api);
+        await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "python", "ApiClient.py.scriban"),
-            project, api,
-            Path.Combine(project.Python.Folder, "src", project.Python.Namespace, project.Python.ClassName.ProperCaseToSnakeCase() + ".py"));
+            context.Project, context.Api,
+            Path.Combine(context.Project.Python.Folder, "src", context.Project.Python.Namespace, context.Project.Python.ClassName.ProperCaseToSnakeCase() + ".py"));
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "python", "__init__.py.scriban"),
-            project, api,
-            Path.Combine(project.Python.Folder, "src", project.Python.Namespace, "__init__.py"));
-        await Extensions.PatchFile(Path.Combine(project.Python.Folder, "setup.cfg"), "version = [\\d\\.]+",
-            $"version = {api.Semver3}");
+            context.Project, context.Api,
+            Path.Combine(context.Project.Python.Folder, "src", context.Project.Python.Namespace, "__init__.py"));
+        await Extensions.PatchFile(Path.Combine(context.Project.Python.Folder, "setup.cfg"), "version = [\\d\\.]+",
+            $"version = {context.OfficialVersion}");
     }
 }

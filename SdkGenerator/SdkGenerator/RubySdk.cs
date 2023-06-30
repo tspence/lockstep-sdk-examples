@@ -244,36 +244,36 @@ public static class RubySdk
         return sb.ToString();
     }
 
-    public static async Task Export(ProjectSchema project, ApiSchema api)
+    public static async Task Export(GeneratorContext context)
     {
-        if (project.Ruby == null)
+        if (context.Project.Ruby == null)
         {
             return;
         }
 
-        await ExportSchemas(project, api);
-        await ExportEndpoints(project, api);
+        await ExportSchemas(context.Project, context.Api);
+        await ExportEndpoints(context.Project, context.Api);
 
         // Some paths we'll need
-        var rubyModulePath = Path.Combine(project.Ruby.Folder, "lib", project.Ruby.Namespace);
-        var rubyGemspecPath = Path.Combine(project.Ruby.Folder, project.Ruby.ModuleName + ".gemspec");
+        var rubyModulePath = Path.Combine(context.Project.Ruby.Folder, "lib", context.Project.Ruby.Namespace);
+        var rubyGemspecPath = Path.Combine(context.Project.Ruby.Folder, context.Project.Ruby.ModuleName + ".gemspec");
 
         // Let's try using Scriban to populate these files
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "ruby", "ApiClient.rb.scriban"),
-            project, api,
-            Path.Combine(rubyModulePath, project.Ruby.ClassName.ProperCaseToSnakeCase() + ".rb"));
+            context.Project, context.Api,
+            Path.Combine(rubyModulePath, context.Project.Ruby.ClassName.ProperCaseToSnakeCase() + ".rb"));
         await Extensions.PatchFile(Path.Combine(rubyModulePath, "version.rb"),
             "VERSION = \"[\\d\\.]+\"",
-            $"VERSION = \"{api.Semver4}\"");
+            $"VERSION = \"{context.OfficialVersion}\"");
         await Extensions.PatchFile(rubyGemspecPath,
             "s.version = '[\\d\\.]+'",
-            $"s.version = '{api.Semver4}'");
+            $"s.version = '{context.OfficialVersion}'");
         await Extensions.PatchFile(rubyGemspecPath,
             "s.date = '[\\d-]+'",
             $"s.date = '{DateTime.Today:yyyy-MM-dd}'");
-        await Extensions.PatchFile(Path.Combine(project.Ruby.Folder, "Gemfile.lock"),
-            $"{project.Ruby.ModuleName} \\([\\d\\.]+\\)",
-            $"{project.Ruby.ModuleName} ({api.Semver4})");
+        await Extensions.PatchFile(Path.Combine(context.Project.Ruby.Folder, "Gemfile.lock"),
+            $"{context.Project.Ruby.ModuleName} \\([\\d\\.]+\\)",
+            $"{context.Project.Ruby.ModuleName} ({context.OfficialVersion})");
     }
 }

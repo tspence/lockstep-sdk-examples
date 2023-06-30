@@ -9,6 +9,14 @@ public class ProjectSchema
     public string CopyrightHolder { get; set; }
     public int ProjectStartYear { get; set; }
     public string SwaggerUrl { get; set; }
+
+    /// <summary>
+    /// The major version mode for this application - e.g. "11.1" or "11.1.2023".
+    /// * 2 - Use the first two segments of semver for public releases
+    /// * 3 - Use the first three segments of semver for public releases
+    /// </summary>
+    public int? SemverMode { get; set; }
+    
     public EnvironmentSchema[] Environments { get; set; }
     public string SwaggerSchemaFolder { get; set; }
     public string Keywords { get; set; }

@@ -377,30 +377,30 @@ public static class JavaSdk
         }
     }
 
-    public static async Task Export(ProjectSchema project, ApiSchema api)
+    public static async Task Export(GeneratorContext context)
     {
-        if (project.Java == null)
+        if (context.Project.Java == null)
         {
             return;
         }
 
-        await ExportSchemas(project, api);
-        await ExportEndpoints(project, api);
+        await ExportSchemas(context.Project, context.Api);
+        await ExportEndpoints(context.Project, context.Api);
 
         // Let's try using Scriban to populate these files
         await ScribanFunctions.ExecuteTemplate(
             Path.Combine(".", "templates", "java", "ApiClient.java.scriban"),
-            project, api,
-            Path.Combine(project.Java.Folder, "src", "main", "java",
-                project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar),
-                project.Java.ClassName + ".java"));
-        await Extensions.PatchFile(Path.Combine(project.Java.Folder, "pom.xml"),
-            $"<artifactId>{project.Java.ModuleName.ToLower()}<\\/artifactId>\\s+<version>[\\d\\.]+<\\/version>",
-            $"<artifactId>{project.Java.ModuleName.ToLower()}</artifactId>\r\n    <version>{api.Semver4}</version>");
+            context.Project, context.Api,
+            Path.Combine(context.Project.Java.Folder, "src", "main", "java",
+                context.Project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar),
+                context.Project.Java.ClassName + ".java"));
+        await Extensions.PatchFile(Path.Combine(context.Project.Java.Folder, "pom.xml"),
+            $"<artifactId>{context.Project.Java.ModuleName.ToLower()}<\\/artifactId>\\s+<version>[\\d\\.]+<\\/version>",
+            $"<artifactId>{context.Project.Java.ModuleName.ToLower()}</artifactId>\r\n    <version>{context.OfficialVersion}</version>");
         await Extensions.PatchFile(
-            Path.Combine(project.Java.Folder, "src", "main", "java",
-                project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar), "RestRequest.java"),
+            Path.Combine(context.Project.Java.Folder, "src", "main", "java",
+                context.Project.Java.Namespace.Replace('.', Path.DirectorySeparatorChar), "RestRequest.java"),
             "request.addHeader\\(\"SdkVersion\", \"[\\d\\.]+\"\\);",
-            $"request.addHeader(\"SdkVersion\", \"{api.Semver4}\");");
+            $"request.addHeader(\"SdkVersion\", \"{context.OfficialVersion}\");");
     }
 }

@@ -6,29 +6,30 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using RestSharp;
+using SdkGenerator.Project;
 using SdkGenerator.Schema;
 
 namespace SdkGenerator;
 
 public static class ReadmeUpload
 {
-    public static async Task UploadSchemas(ApiSchema api, string readmeApiKey, string format)
+    public static async Task UploadSchemas(GeneratorContext context, string format)
     {
         var order = 1;
-        if (!string.IsNullOrWhiteSpace(readmeApiKey))
+        if (!string.IsNullOrWhiteSpace(context.Project?.Readme?.ApiKey))
         {
-            foreach (var schema in api.Schemas.Where(schema => schema.Fields != null))
+            foreach (var schema in context.Api.Schemas.Where(schema => schema.Fields != null))
             {
                 try
                 {
                     var markdownText = format switch
                     {
-                        "table" => MakeMarkdownTable(schema, api),
-                        "list" => MakeMarkdownBulletList(schema, api),
+                        "table" => MakeMarkdownTable(schema, context.Api),
+                        "list" => MakeMarkdownBulletList(schema, context.Api),
                         _ => ""
                     };
 
-                    await UploadToReadme(readmeApiKey, schema.Name, order++, markdownText);
+                    await UploadToReadme(context.Project.Readme.ApiKey, schema.Name, order++, markdownText);
                 }
                 catch (Exception e)
                 {
@@ -38,20 +39,20 @@ public static class ReadmeUpload
         }
     }
     
-    public static async Task WriteMarkdownFiles(ApiSchema api, string folder, string format)
+    public static async Task WriteMarkdownFiles(GeneratorContext context, string format)
     {
-        foreach (var schema in api.Schemas.Where(schema => schema.Fields != null))
+        foreach (var schema in context.Api.Schemas.Where(schema => schema.Fields != null))
         {
             try
             {
                 var markdownText = format switch
                 {
-                    "table" => MakeMarkdownTable(schema, api),
-                    "list" => MakeMarkdownBulletList(schema, api),
+                    "table" => MakeMarkdownTable(schema, context.Api),
+                    "list" => MakeMarkdownBulletList(schema, context.Api),
                     _ => ""
                 };
 
-                var filename = Path.Combine(folder, schema.Name.ToLower() + ".md");
+                var filename = Path.Combine(context.Project.SwaggerSchemaFolder, schema.Name.ToLower() + ".md");
                 await File.WriteAllTextAsync(filename, markdownText);
             }
             catch (Exception e)

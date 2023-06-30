@@ -42,58 +42,37 @@ public static class Program
 
     private static async Task GenerateProject(string filename)
     {
-
-        // Retrieve project
-        if (!File.Exists(filename))
-        {
-            Console.WriteLine($"Project file could not be found: {filename}");
-            return;
-        }
-
-        var text = await File.ReadAllTextAsync(filename);
-        var project = JsonConvert.DeserializeObject<ProjectSchema>(text);
-
-        if (project is null)
-        {
-            Console.WriteLine("Could not parse project file");
-            return;
-        }
-        
-        // Ensure the folder for collecting swagger files exists
-        if (project.SwaggerSchemaFolder != null)
-        {
-            Directory.CreateDirectory(project.SwaggerSchemaFolder);
-        }
+        var context = await GeneratorContext.FromFile(filename);
 
         // Fetch the environment and version number
-        Console.WriteLine($"Retrieving swagger file from {project.SwaggerUrl}");
-        var api = await DownloadFile.GenerateApi(project);
-        if (api == null)
+        Console.WriteLine($"Retrieving swagger file from {context.Project.SwaggerUrl}");
+        context.Api = await DownloadFile.GenerateApi(context);
+        if (context.Api == null)
         {
             Console.WriteLine("Unable to retrieve API and version number successfully.");
             return;
         }
 
-        Console.WriteLine($"Retrieved swagger file. Version: {api.Semver2}");
+        Console.WriteLine($"Retrieved swagger file. Version: {context.Version2}");
 
         // Let's do some software development kits, if selected
-        await TypescriptSdk.Export(project, api);
-        await CSharpSdk.Export(project, api);
-        await JavaSdk.Export(project, api);
-        await RubySdk.Export(project, api);
-        await PythonSdk.Export(project, api);
+        await TypescriptSdk.Export(context);
+        await CSharpSdk.Export(context);
+        await JavaSdk.Export(context);
+        await RubySdk.Export(context);
+        await PythonSdk.Export(context);
 
         // Where do we want to send the documentation? 
-        if (project.Readme != null)
+        if (context.Project?.Readme?.ApiKey != null)
         {
             Console.WriteLine("Uploading data models to Readme...");
-            await ReadmeUpload.UploadSchemas(api, project.Readme.ApiKey, "list");
+            await ReadmeUpload.UploadSchemas(context, "list");
             Console.WriteLine("Uploaded data models to Readme.");
         }
-        else if (project.SwaggerSchemaFolder != null)
+        else if (context.Project?.SwaggerSchemaFolder != null)
         {
-            Console.WriteLine($"Writing documentation to {project.SwaggerSchemaFolder}...");
-            await ReadmeUpload.WriteMarkdownFiles(api, project.SwaggerSchemaFolder, "list");
+            Console.WriteLine($"Writing documentation to {context.Project.SwaggerSchemaFolder}...");
+            await ReadmeUpload.WriteMarkdownFiles(context, "list");
             Console.WriteLine("Finished writing documentation files.");
         }
         else
